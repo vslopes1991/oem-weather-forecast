@@ -5,6 +5,9 @@ import pandas as pd
 import openmeteo_requests
 import requests_cache
 from retry_requests import retry
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error
 
 dotenv.load_dotenv()
 
@@ -174,5 +177,44 @@ tme_info = get_tme()
 tme_historical_forecast = get_openmeteo_historical_forecast(tme_info)
 tme_historical_obs = get_tme_historical(tme_info, tme_historical_forecast["TIMESTAMP"].min(),
                                         tme_historical_forecast["TIMESTAMP"].max())
+
+
+
+data = pd.merge(tme_historical_forecast, tme_historical_obs, on=['ID', 'TIMESTAMP'])
+
+
+# Load data
+tme_info = pd.read_csv('tme_info.csv')
+tme_historical_forecast = pd.read_csv('tme_historical_forecast.csv')
+tme_historical_obs = pd.read_csv('tme_historical_obs.csv')
+
+# Merge dataframes
+data = pd.merge(tme_historical_forecast, tme_historical_obs, on=['ID', 'TIMESTAMP'])
+
+# Train individual models for each weather station
+stations = data['NM_TME'].unique()
+models = {}
+
+for station in stations:
+    station_data = data[data['NM_TME'] == station]
+    X = station_data[['MODEL_ID', 'STEP', 'VAR_ID']]
+    y = station_data['WIND_SPD_TOP']
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    model = RandomForestRegressor()
+    param_grid = {'n_estimators': [100, 200], 'max_depth': [10, 20]}
+    grid_search = GridSearchCV(model, param_grid, cv=5)
+    grid_search.fit(X_train, y_train)
+
+    best_model = grid_search.best_estimator_
+    models[station] = best_model
+
+    y_pred = best_model.predict(X_test)
+    print(f'{station} MAE: {mean_absolute_error(y_test, y_pred)}')
+
+
+
+
 
 
