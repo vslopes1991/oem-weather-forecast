@@ -1,0 +1,9 @@
+snowflake-connector-python==2.8.0
+pandas==1.5.3
+numpy==1.26.4
+python-dotenv==1.0.0
+matplotlib==3.8.4
+openmeteo-requests
+requests-cache
+retry-requests
+
